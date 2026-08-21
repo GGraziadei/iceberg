@@ -82,3 +82,6 @@ derby.log
 
 # claude code
 .claude/
+
+# local git worktrees
+.worktrees/
