@@ -206,6 +206,22 @@ public class TestZOrderByteUtil {
     }
   }
 
+  /** A leading zero-length column contributes nothing and is skipped before interleaving starts. */
+  @Test
+  public void testInterleaveWithLeadingEmptyColumn() {
+    byte[][] test = {new byte[0], new byte[] {(byte) 0x80}, new byte[] {0x01}};
+
+    assertThat(ZOrderByteUtils.interleaveBits(test, 2))
+        .as("Leading empty column should be skipped")
+        .isEqualTo(new byte[] {(byte) 0x80, 0x01});
+  }
+
+  /** Empty columns with an empty output do not require an input byte. */
+  @Test
+  public void testInterleaveEmptyColumnsWithEmptyOutput() {
+    assertThat(ZOrderByteUtils.interleaveBits(new byte[][] {new byte[0]}, 0)).isEmpty();
+  }
+
   /** A zero-length column contributes nothing and must not disturb the other columns. */
   @Test
   public void testInterleaveWithEmptyColumn() {

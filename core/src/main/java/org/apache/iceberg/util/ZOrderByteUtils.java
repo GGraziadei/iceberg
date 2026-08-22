@@ -298,8 +298,15 @@ public class ZOrderByteUtils {
   private static byte[] interleaveBitwise(
       byte[][] columnsBinary, int interleavedSize, byte[] interleavedBytes) {
     Arrays.fill(interleavedBytes, 0, interleavedSize, (byte) 0x00);
+    if (interleavedSize == 0) {
+      return interleavedBytes;
+    }
 
     int sourceColumn = 0;
+    while (columnsBinary[sourceColumn].length == 0) {
+      sourceColumn += 1;
+    }
+
     int sourceByte = 0;
     int sourceBit = 7;
     int interleaveByte = 0;
