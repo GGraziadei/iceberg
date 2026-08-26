@@ -231,7 +231,8 @@ class TestFileTypeParquet {
 
   private static List<Record> records() {
     GenericRecord row = GenericRecord.create(SCHEMA);
-    GenericRecord photo = GenericRecord.create(Types.FileType.of(2));
+    // a file value is written through its struct shape; the type itself is not a struct
+    GenericRecord photo = GenericRecord.create(Types.FileType.of(2).shape());
 
     return ImmutableList.of(
         row.copy(

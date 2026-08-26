@@ -48,11 +48,23 @@ class TestFileType {
   }
 
   @Test
-  void isHandledAsAStruct() {
-    assertThat(FILE.typeId()).isEqualTo(Type.TypeID.STRUCT);
-    assertThat(FILE.isStructType()).isTrue();
+  void isANestedTypeButNotAStruct() {
+    assertThat(FILE.typeId()).isEqualTo(Type.TypeID.FILE);
     assertThat(FILE.isNestedType()).isTrue();
-    assertThat(FILE.asStructType()).isSameAs(FILE);
+    assertThat(FILE.asNestedType()).isSameAs(FILE);
+
+    assertThat(FILE.isStructType()).isFalse();
+    assertThatThrownBy(FILE::asStructType)
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageStartingWith("Not a struct type:");
+  }
+
+  @Test
+  void exposesTheDerivedFieldsAsAStructShape() {
+    assertThat(FILE.shape().fields()).isEqualTo(FILE.fields());
+    assertThat(FILE.numDerivedFields()).isEqualTo(Types.FileType.NUM_NESTED_FIELDS);
+    assertThat(FILE.withEnclosingId(5)).isSameAs(FILE);
+    assertThat(FILE.withEnclosingId(20)).isEqualTo(Types.FileType.of(20));
   }
 
   @Test

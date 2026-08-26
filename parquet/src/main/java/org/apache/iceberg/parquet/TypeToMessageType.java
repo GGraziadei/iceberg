@@ -26,6 +26,7 @@ import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.FLOAT;
 import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;
 import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT64;
 
+import java.util.List;
 import java.util.function.BiFunction;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.avro.AvroSchemaUtil;
@@ -99,9 +100,14 @@ public class TypeToMessageType {
   }
 
   public GroupType struct(StructType struct, Type.Repetition repetition, int id, String name) {
+    return group(struct.fields(), repetition, id, name);
+  }
+
+  private GroupType group(
+      List<NestedField> fields, Type.Repetition repetition, int id, String name) {
     Types.GroupBuilder<GroupType> builder = Types.buildGroup(repetition);
 
-    for (NestedField field : struct.fields()) {
+    for (NestedField field : fields) {
       // unknown type is not written to data files
       Type fieldType = field(field);
       if (fieldType != null) {
@@ -176,7 +182,7 @@ public class TypeToMessageType {
     // FileLogicalTypeAnnotation does not exist in parquet 1.17.1, so the group is written without
     // an annotation. Iceberg readers resolve the nested fields by field ID, so they read these
     // files correctly, but other readers see a plain group.
-    return struct(file, repetition, id, name);
+    return group(file.fields(), repetition, id, name);
   }
 
   public Type variant(Type.Repetition repetition, int id, String originalName) {

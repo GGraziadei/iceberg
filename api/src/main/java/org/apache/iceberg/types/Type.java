@@ -47,6 +47,7 @@ public interface Type extends Serializable {
     GEOMETRY(ByteBuffer.class),
     GEOGRAPHY(ByteBuffer.class),
     STRUCT(StructLike.class),
+    FILE(StructLike.class),
     LIST(List.class),
     MAP(Map.class),
     VARIANT(Variant.class),

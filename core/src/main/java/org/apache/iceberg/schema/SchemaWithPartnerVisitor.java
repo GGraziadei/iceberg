@@ -67,6 +67,27 @@ public abstract class SchemaWithPartnerVisitor<P, R> {
         }
         return visitor.struct(struct, partner, results);
 
+      case FILE:
+        // a file is walked through its struct shape: its derived fields are real fields, and a
+        // caller that tries to change them is rejected by the schema update itself
+        Types.FileType file = type.asFileType();
+        List<T> fileResults = Lists.newArrayListWithExpectedSize(file.fields().size());
+        for (Types.NestedField field : file.fields()) {
+          P fieldPartner =
+              partner != null
+                  ? accessors.fieldPartner(partner, field.fieldId(), field.name())
+                  : null;
+          visitor.beforeField(field, fieldPartner);
+          T result;
+          try {
+            result = visit(field.type(), fieldPartner, visitor, accessors);
+          } finally {
+            visitor.afterField(field, fieldPartner);
+          }
+          fileResults.add(visitor.field(field, fieldPartner, result));
+        }
+        return visitor.struct(file.shape(), partner, fileResults);
+
       case LIST:
         Types.ListType list = type.asNestedType().asListType();
         T elementResult;

@@ -83,7 +83,9 @@ public class UnionByNameVisitor extends SchemaWithPartnerVisitor<Integer, Boolea
     }
 
     List<Types.NestedField> fields = struct.fields();
-    Types.StructType partnerStruct = findFieldType(partnerId).asStructType();
+    Type partnerType = findFieldType(partnerId);
+    Types.StructType partnerStruct =
+        partnerType.isFileType() ? partnerType.asFileType().shape() : partnerType.asStructType();
     IntStream.range(0, missingPositions.size())
         .forEach(
             pos -> {
@@ -230,7 +232,11 @@ public class UnionByNameVisitor extends SchemaWithPartnerVisitor<Integer, Boolea
       if (partnerFieldId == -1) {
         struct = partnerSchema.asStruct();
       } else {
-        struct = partnerSchema.findField(partnerFieldId).type().asStructType();
+        Type partnerType = partnerSchema.findField(partnerFieldId).type();
+        struct =
+            partnerType.isFileType()
+                ? partnerType.asFileType().shape()
+                : partnerType.asStructType();
       }
 
       Types.NestedField field =

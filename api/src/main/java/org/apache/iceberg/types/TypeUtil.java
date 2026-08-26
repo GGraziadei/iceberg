@@ -460,9 +460,15 @@ public class TypeUtil {
     return TypeUtil.visit(type, new AssignIds(getId));
   }
 
+  /**
+   * Returns the type to store under a field that was assigned a new ID.
+   *
+   * <p>A type with derived fields is rebuilt from the new enclosing ID because its nested field IDs
+   * are a function of that ID. Every other type keeps the result produced by the visitor.
+   */
   static Type assignedType(Type original, int newId, Type visited) {
-    if (original.isFileType()) {
-      return Types.FileType.of(newId);
+    if (original instanceof Types.DerivedFields) {
+      return ((Types.DerivedFields) original).withEnclosingId(newId);
     }
 
     return visited;
@@ -816,6 +822,17 @@ public class TypeUtil {
       throw new UnsupportedOperationException("Unsupported type: variant");
     }
 
+    /**
+     * Handles a file type.
+     *
+     * <p>A file is processed as its struct shape by default, so that visitors which only read a
+     * schema keep working. Visitors that must not rewrite or descend into the derived fields, such
+     * as the ones that assign field IDs, override this method.
+     */
+    public T file(Types.FileType file, List<T> fieldResults) {
+      return struct(file.shape(), fieldResults);
+    }
+
     public T primitive(Type.PrimitiveType primitive) {
       return null;
     }
@@ -879,6 +896,21 @@ public class TypeUtil {
 
         return visitor.map(map, keyResult, valueResult);
 
+      case FILE:
+        Types.FileType file = type.asFileType();
+        List<T> fileResults = Lists.newArrayListWithExpectedSize(file.fields().size());
+        for (Types.NestedField field : file.fields()) {
+          visitor.beforeField(field);
+          T result;
+          try {
+            result = visit(field.type(), visitor);
+          } finally {
+            visitor.afterField(field);
+          }
+          fileResults.add(visitor.field(field, result));
+        }
+        return visitor.file(file, fileResults);
+
       case VARIANT:
         return visitor.variant(type.asVariantType());
 
@@ -910,6 +942,17 @@ public class TypeUtil {
 
     public T variant(Types.VariantType variant) {
       throw new UnsupportedOperationException("Unsupported type: variant");
+    }
+
+    /**
+     * Handles a file type.
+     *
+     * <p>A file is processed as its struct shape by default, so that visitors which only read a
+     * schema keep working. Visitors that must not rewrite or descend into the derived fields, such
+     * as the ones that assign field IDs, override this method.
+     */
+    public T file(Types.FileType file, Iterable<T> fieldResults) {
+      return struct(file.shape(), fieldResults);
     }
 
     public T primitive(Type.PrimitiveType primitive) {
@@ -987,6 +1030,16 @@ public class TypeUtil {
             map,
             new VisitFuture<>(map.keyType(), visitor),
             new VisitFuture<>(map.valueType(), visitor));
+
+      case FILE:
+        Types.FileType file = type.asFileType();
+        List<VisitFieldFuture<T>> fileResults =
+            Lists.newArrayListWithExpectedSize(file.fields().size());
+        for (Types.NestedField field : file.fields()) {
+          fileResults.add(new VisitFieldFuture<>(field, visitor));
+        }
+
+        return visitor.file(file, Iterables.transform(fileResults, VisitFieldFuture::get));
 
       case VARIANT:
         return visitor.variant(type.asVariantType());

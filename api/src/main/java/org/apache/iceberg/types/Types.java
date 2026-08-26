@@ -1028,7 +1028,7 @@ public class Types {
     private transient Map<String, NestedField> fieldsByLowerCaseName = null;
     private transient Map<Integer, NestedField> fieldsById = null;
 
-    StructType(List<NestedField> fields) {
+    private StructType(List<NestedField> fields) {
       Preconditions.checkNotNull(fields, "Field list cannot be null");
       this.fields = new NestedField[fields.size()];
       for (int i = 0; i < this.fields.length; i += 1) {
@@ -1106,10 +1106,6 @@ public class Types {
       }
 
       StructType that = (StructType) o;
-      if (isFileType() != that.isFileType()) {
-        return false;
-      }
-
       return Arrays.equals(fields, that.fields);
     }
 
@@ -1159,7 +1155,25 @@ public class Types {
     }
   }
 
-  public static final class FileType extends StructType {
+  /**
+   * A type whose nested fields are derived from the ID of the field that holds it.
+   *
+   * <p>The fields of a derived type are real Iceberg fields, but the set is closed: it cannot be
+   * added to, reordered, or otherwise changed, and the IDs are a function of the enclosing field ID
+   * rather than being assigned independently.
+   */
+  public interface DerivedFields {
+    /** Returns the ID of the field that holds this type. */
+    int enclosingId();
+
+    /** Returns the number of IDs reserved after the enclosing ID for the derived fields. */
+    int numDerivedFields();
+
+    /** Returns an equivalent type with its fields derived from the given enclosing field ID. */
+    Type withEnclosingId(int enclosingId);
+  }
+
+  public static final class FileType extends Type.NestedType implements DerivedFields {
     public static final String NAME = "file";
     public static final int NUM_NESTED_FIELDS = 6;
 
@@ -1175,10 +1189,11 @@ public class Types {
     }
 
     private final int enclosingId;
+    private final StructType shape;
 
     private FileType(int enclosingId) {
-      super(nestedFields(enclosingId));
       this.enclosingId = enclosingId;
+      this.shape = StructType.of(nestedFields(enclosingId));
     }
 
     private static List<NestedField> nestedFields(int enclosingId) {
@@ -1191,9 +1206,34 @@ public class Types {
           NestedField.optional(enclosingId + 6, INLINE, BinaryType.get()));
     }
 
-    /** Returns the ID of the field that holds this type. */
+    @Override
     public int enclosingId() {
       return enclosingId;
+    }
+
+    @Override
+    public int numDerivedFields() {
+      return NUM_NESTED_FIELDS;
+    }
+
+    /**
+     * Returns the derived fields as a struct.
+     *
+     * <p>This is the shape a reader sees. It is not the identity of this type: a file is not
+     * interchangeable with a struct, and its fields cannot be added to, reordered, or changed.
+     */
+    public StructType shape() {
+      return shape;
+    }
+
+    @Override
+    public FileType withEnclosingId(int newEnclosingId) {
+      return newEnclosingId == enclosingId ? this : of(newEnclosingId);
+    }
+
+    @Override
+    public TypeID typeId() {
+      return TypeID.FILE;
     }
 
     @Override
@@ -1204,6 +1244,21 @@ public class Types {
     @Override
     public FileType asFileType() {
       return this;
+    }
+
+    @Override
+    public List<NestedField> fields() {
+      return shape.fields();
+    }
+
+    @Override
+    public Type fieldType(String name) {
+      return shape.fieldType(name);
+    }
+
+    @Override
+    public NestedField field(int id) {
+      return shape.field(id);
     }
 
     @Override

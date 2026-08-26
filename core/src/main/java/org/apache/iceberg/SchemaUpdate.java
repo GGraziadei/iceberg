@@ -135,12 +135,12 @@ class SchemaUpdate implements UpdateSchema {
         }
       }
       Preconditions.checkArgument(
+          !parentField.type().isFileType(), "Cannot add to a file column: %s", parent);
+      Preconditions.checkArgument(
           parentField.type().isNestedType() && parentField.type().asNestedType().isStructType(),
           "Cannot add to non-struct column: %s: %s",
           parent,
           parentField.type());
-      Preconditions.checkArgument(
-          !parentField.type().isFileType(), "Cannot add to a file column: %s", parent);
       parentId = parentField.fieldId();
       Types.NestedField currentField = findField(parent + "." + name);
       Preconditions.checkArgument(
@@ -466,9 +466,9 @@ class SchemaUpdate implements UpdateSchema {
     if (parentId != null) {
       Types.NestedField parent = schema.findField(parentId);
       Preconditions.checkArgument(
-          parent.type().isStructType(), "Cannot move fields in non-struct type: %s", parent.type());
-      Preconditions.checkArgument(
           !parent.type().isFileType(), "Cannot move fields in a file column: %s", name);
+      Preconditions.checkArgument(
+          parent.type().isStructType(), "Cannot move fields in non-struct type: %s", parent.type());
 
       if (move.type() == Move.MoveType.AFTER || move.type() == Move.MoveType.BEFORE) {
         Preconditions.checkArgument(
@@ -653,6 +653,12 @@ class SchemaUpdate implements UpdateSchema {
       }
 
       return structResult;
+    }
+
+    @Override
+    public Type file(Types.FileType file, List<Type> fieldResults) {
+      // the derived fields are closed, so no change applies inside a file column
+      return file;
     }
 
     @Override

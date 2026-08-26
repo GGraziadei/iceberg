@@ -51,6 +51,14 @@ class PruneColumns extends TypeUtil.SchemaVisitor<Type> {
   }
 
   @Override
+  public Type file(Types.FileType file, List<Type> fieldResults) {
+    Type projected = struct(file.shape(), fieldResults);
+    // a file keeps its identity only while every derived field is projected; a subset of the
+    // derived fields is an ordinary struct, because the closed set no longer holds
+    return projected == file.shape() ? file : projected;
+  }
+
+  @Override
   public Type struct(Types.StructType struct, List<Type> fieldResults) {
     List<Types.NestedField> fields = struct.fields();
     List<Types.NestedField> selectedFields = Lists.newArrayListWithExpectedSize(fields.size());

@@ -67,7 +67,12 @@ public class TypeWithSchemaVisitor<T> {
         return visitVariant(iType != null ? iType.asVariantType() : null, group, visitor);
       }
 
-      Types.StructType struct = iType != null ? iType.asStructType() : null;
+      // a file is physically a group, so it is visited through its struct shape
+      Types.StructType struct = null;
+      if (iType != null) {
+        struct = iType.isFileType() ? iType.asFileType().shape() : iType.asStructType();
+      }
+
       return visitor.struct(struct, group, visitFields(struct, group, visitor));
     }
   }
