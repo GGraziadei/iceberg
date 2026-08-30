@@ -23,6 +23,7 @@ import org.apache.iceberg.RewriteJobOrder;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.expressions.Expression;
+import org.apache.iceberg.expressions.Term;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableList;
 
 /**
@@ -197,6 +198,30 @@ public interface RewriteDataFiles
   default RewriteDataFiles hilbert(String... columns) {
     throw new UnsupportedOperationException(
         "HILBERT Rewrite Strategy not implemented for this framework");
+  }
+
+  /**
+   * Choose Z-ORDER as a strategy for this rewrite operation with a specified list of terms to use
+   *
+   * @param terms Column references or Iceberg transforms (e.g. {@code Expressions.truncate("s",
+   *     4)}, {@code Expressions.day("ts")}) used to generate Z-values
+   * @return this for method chaining
+   */
+  default RewriteDataFiles zOrder(Term... terms) {
+    throw new UnsupportedOperationException(
+        "Z-ORDER by terms is not supported by " + this.getClass().getName());
+  }
+
+  /**
+   * Choose HILBERT as a strategy for this rewrite operation with a specified list of terms to use
+   *
+   * @param terms Column references or Iceberg transforms (e.g. {@code Expressions.truncate("s",
+   *     4)}, {@code Expressions.day("ts")}) used to generate Hilbert values
+   * @return this for method chaining
+   */
+  default RewriteDataFiles hilbert(Term... terms) {
+    throw new UnsupportedOperationException(
+        "HILBERT by terms is not supported by " + this.getClass().getName());
   }
 
   /**

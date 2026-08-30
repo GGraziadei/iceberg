@@ -20,8 +20,11 @@ package org.apache.iceberg.spark.actions;
 
 import static org.apache.spark.sql.functions.array;
 
+import java.util.Arrays;
 import java.util.List;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.expressions.Expressions;
+import org.apache.iceberg.expressions.Term;
 import org.apache.iceberg.util.ZOrderByteUtils;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
@@ -45,14 +48,30 @@ class SparkHilbertFileRewriteRunner extends SparkCurveFileRewriteRunner {
   private static final int BITS_PER_COLUMN = ZOrderByteUtils.PRIMITIVE_BUFFER_SIZE * Byte.SIZE;
 
   SparkHilbertFileRewriteRunner(SparkSession spark, Table table, List<String> hilbertColNames) {
+    this(spark, table, toTerms(hilbertColNames));
+  }
+
+  // Kept private: a package-visible overload here would be ambiguous with the List<String>
+  // constructor above at any call site that passes a bare `null` (both are applicable, and
+  // neither is more specific per JLS 15.12.2.5). Term-based construction is exposed instead
+  // through the withTerms(...) factory below, which is not part of that overload set.
+  private SparkHilbertFileRewriteRunner(SparkSession spark, Table table, Term... hilbertTerms) {
     super(
         spark,
         table,
-        hilbertColNames,
+        hilbertTerms == null ? null : Arrays.asList(hilbertTerms),
         H_COLUMN,
         "Cannot HILBERT when no columns are specified",
         "Cannot HILBERT because the table has a column named '%s', which conflicts with Iceberg's internal Hilbert column name",
         "Cannot HILBERT, all columns provided were identity partition columns and cannot be used");
+  }
+
+  static SparkHilbertFileRewriteRunner withTerms(SparkSession spark, Table table, Term... terms) {
+    return new SparkHilbertFileRewriteRunner(spark, table, terms);
+  }
+
+  private static Term[] toTerms(List<String> colNames) {
+    return colNames == null ? null : colNames.stream().map(Expressions::ref).toArray(Term[]::new);
   }
 
   @Override
@@ -66,8 +85,8 @@ class SparkHilbertFileRewriteRunner extends SparkCurveFileRewriteRunner {
     // Hilbert transform sees a uniform per-dimension width with no magnitude loss.
     SparkZOrderUDF byteUDF =
         new SparkZOrderUDF(
-            curveColNames().size(), ZOrderByteUtils.PRIMITIVE_BUFFER_SIZE, Integer.MAX_VALUE);
-    SparkHilbertUDF hilbertUDF = new SparkHilbertUDF(curveColNames().size(), BITS_PER_COLUMN);
+            curveTerms().size(), ZOrderByteUtils.PRIMITIVE_BUFFER_SIZE, Integer.MAX_VALUE);
+    SparkHilbertUDF hilbertUDF = new SparkHilbertUDF(curveTerms().size(), BITS_PER_COLUMN);
     return hilbertUDF.hilbertValue(array(orderedColumns(df, byteUDF)));
   }
 }

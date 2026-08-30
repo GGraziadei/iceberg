@@ -21,7 +21,7 @@ package org.apache.iceberg.expressions;
 import java.util.List;
 
 public class Zorder extends MultiColumnTerm {
-  public Zorder(List<NamedReference<?>> refs) {
-    super(refs);
+  public Zorder(List<? extends UnboundTerm<?>> terms) {
+    super(terms);
   }
 }

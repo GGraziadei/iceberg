@@ -369,13 +369,22 @@ public class Spark3Util {
   public static Term toIcebergTerm(Expression expr) {
     if (expr instanceof Transform) {
       Transform transform = (Transform) expr;
+      boolean isCurveTransform =
+          "zorder".equals(transform.name()) || "hilbert".equals(transform.name());
+      if (!isCurveTransform) {
+        Preconditions.checkArgument(
+            Stream.of(transform.arguments()).noneMatch(argument -> argument instanceof Transform),
+            "Cannot convert transform with nested transform arguments: %s",
+            transform);
+      }
       Preconditions.checkArgument(
-          "zorder".equals(transform.name())
-              || "hilbert".equals(transform.name())
-              || transform.references().length == 1,
+          isCurveTransform || transform.references().length == 1,
           "Cannot convert transform with more than one column reference: %s",
           transform);
-      String colName = DOT.join(transform.references()[0].fieldNames());
+      String colName =
+          transform.references().length > 0
+              ? DOT.join(transform.references()[0].fieldNames())
+              : null;
       switch (transform.name().toLowerCase(Locale.ROOT)) {
         case "identity":
           return org.apache.iceberg.expressions.Expressions.ref(colName);
@@ -398,9 +407,9 @@ public class Spark3Util {
         case "truncate":
           return org.apache.iceberg.expressions.Expressions.truncate(colName, findWidth(transform));
         case "zorder":
-          return new Zorder(references(transform));
+          return new Zorder(terms(transform));
         case "hilbert":
-          return new Hilbert(references(transform));
+          return new Hilbert(terms(transform));
         default:
           throw new UnsupportedOperationException("Transform is not supported: " + transform);
       }
@@ -414,13 +423,27 @@ public class Spark3Util {
     }
   }
 
-  private static List<org.apache.iceberg.expressions.NamedReference<?>> references(
-      Transform transform) {
-    return Stream.of(transform.references())
-        .map(ref -> DOT.join(ref.fieldNames()))
-        .<org.apache.iceberg.expressions.NamedReference<?>>map(
-            org.apache.iceberg.expressions.Expressions::ref)
+  private static List<org.apache.iceberg.expressions.UnboundTerm<?>> terms(Transform transform) {
+    return Stream.of(transform.arguments())
+        .<org.apache.iceberg.expressions.UnboundTerm<?>>map(Spark3Util::toCurveArgumentTerm)
         .collect(Collectors.toList());
+  }
+
+  private static org.apache.iceberg.expressions.UnboundTerm<?> toCurveArgumentTerm(
+      Expression argument) {
+    if (argument instanceof NamedReference) {
+      return org.apache.iceberg.expressions.Expressions.ref(
+          DOT.join(((NamedReference) argument).fieldNames()));
+    }
+    Preconditions.checkArgument(
+        argument instanceof Transform, "Cannot convert curve term argument: %s", argument);
+    String name = ((Transform) argument).name().toLowerCase(Locale.ROOT);
+    Preconditions.checkArgument(
+        !"zorder".equals(name) && !"hilbert".equals(name),
+        "Cannot nest multi-column terms: %s",
+        argument);
+    Term converted = toIcebergTerm(argument);
+    return (org.apache.iceberg.expressions.UnboundTerm<?>) converted;
   }
 
   /**

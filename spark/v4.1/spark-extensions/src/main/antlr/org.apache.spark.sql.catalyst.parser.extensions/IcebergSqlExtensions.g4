@@ -149,6 +149,7 @@ transform
 transformArgument
     : multipartIdentifier
     | constant
+    | transform
     ;
 
 expression

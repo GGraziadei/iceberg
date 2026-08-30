@@ -21,7 +21,7 @@ package org.apache.iceberg.expressions;
 import java.util.List;
 
 public class Hilbert extends MultiColumnTerm {
-  public Hilbert(List<NamedReference<?>> refs) {
-    super(refs);
+  public Hilbert(List<? extends UnboundTerm<?>> terms) {
+    super(terms);
   }
 }

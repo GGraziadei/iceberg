@@ -475,6 +475,12 @@ Using the same defaults as bin-pack to determine which files to rewrite.
 CALL catalog_name.system.rewrite_data_files(table => 'db.sample', strategy => 'sort', sort_order => 'zorder(c1,c2)');
 ```
 
+Rewrite the data files in table `db.sample` using z-order with transform expressions.
+Z-order and Hilbert terms may be Iceberg transforms (`bucket`, `truncate`, `year`, `month`, `day`, `hour`) as well as plain columns (Spark 4.1 and later).
+```sql
+CALL catalog_name.system.rewrite_data_files(table => 'db.sample', strategy => 'sort', sort_order => 'zorder(truncate(4, c2), days(c3))');
+```
+
 Rewrite the data files in table `db.sample` by clustering on a Hilbert curve over columns c1 and c2.
 Using the same defaults as bin-pack to determine which files to rewrite.
 ```sql
