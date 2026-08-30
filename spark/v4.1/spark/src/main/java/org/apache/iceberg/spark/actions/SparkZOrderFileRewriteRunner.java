@@ -20,10 +20,13 @@ package org.apache.iceberg.spark.actions;
 
 import static org.apache.spark.sql.functions.array;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.expressions.Expressions;
+import org.apache.iceberg.expressions.Term;
 import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableSet;
 import org.apache.iceberg.util.PropertyUtil;
@@ -59,14 +62,30 @@ class SparkZOrderFileRewriteRunner extends SparkCurveFileRewriteRunner {
   private int varLengthContribution;
 
   SparkZOrderFileRewriteRunner(SparkSession spark, Table table, List<String> zOrderColNames) {
+    this(spark, table, toTerms(zOrderColNames));
+  }
+
+  // Kept private: a package-visible overload here would be ambiguous with the List<String>
+  // constructor above at any call site that passes a bare `null` (both are applicable, and
+  // neither is more specific per JLS 15.12.2.5). Term-based construction is exposed instead
+  // through the withTerms(...) factory below, which is not part of that overload set.
+  private SparkZOrderFileRewriteRunner(SparkSession spark, Table table, Term... zOrderTerms) {
     super(
         spark,
         table,
-        zOrderColNames,
+        zOrderTerms == null ? null : Arrays.asList(zOrderTerms),
         Z_COLUMN,
         "Cannot ZOrder when no columns are specified",
         "Cannot zorder because the table has a column named '%s', which conflicts with Iceberg's internal Z-order column name",
         "Cannot ZOrder, all columns provided were identity partition columns and cannot be used");
+  }
+
+  static SparkZOrderFileRewriteRunner withTerms(SparkSession spark, Table table, Term... terms) {
+    return new SparkZOrderFileRewriteRunner(spark, table, terms);
+  }
+
+  private static Term[] toTerms(List<String> colNames) {
+    return colNames == null ? null : colNames.stream().map(Expressions::ref).toArray(Term[]::new);
   }
 
   @Override
@@ -93,7 +112,7 @@ class SparkZOrderFileRewriteRunner extends SparkCurveFileRewriteRunner {
   @Override
   protected Column curveValue(Dataset<Row> df) {
     SparkZOrderUDF zOrderUDF =
-        new SparkZOrderUDF(curveColNames().size(), varLengthContribution, maxOutputSize);
+        new SparkZOrderUDF(curveTerms().size(), varLengthContribution, maxOutputSize);
     return zOrderUDF.interleaveBytes(array(orderedColumns(df, zOrderUDF)));
   }
 

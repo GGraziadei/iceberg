@@ -22,19 +22,25 @@ import java.util.List;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableList;
 
 /**
- * A {@link Term} over an ordered list of column references.
+ * A {@link Term} over an ordered list of unbound terms.
  *
  * <p>Shared base of multi-column expressions such as {@link Zorder} and {@link Hilbert}, which
- * differ only in how an engine combines the referenced columns.
+ * differ only in how an engine combines the terms.
  */
 public abstract class MultiColumnTerm implements Term {
-  private final List<NamedReference<?>> refs;
+  private final List<UnboundTerm<?>> terms;
 
-  protected MultiColumnTerm(List<NamedReference<?>> refs) {
-    this.refs = ImmutableList.copyOf(refs);
+  protected MultiColumnTerm(List<? extends UnboundTerm<?>> terms) {
+    this.terms = ImmutableList.copyOf(terms);
   }
 
+  /** Returns the ordered terms this multi-column term combines. */
+  public List<UnboundTerm<?>> terms() {
+    return terms;
+  }
+
+  /** Returns the column reference underlying each term, in term order. */
   public List<NamedReference<?>> refs() {
-    return refs;
+    return terms.stream().map(UnboundTerm::ref).collect(ImmutableList.toImmutableList());
   }
 }

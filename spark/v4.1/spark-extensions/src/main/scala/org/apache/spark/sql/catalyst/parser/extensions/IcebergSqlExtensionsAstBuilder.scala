@@ -310,8 +310,11 @@ class IcebergSqlExtensionsAstBuilder(delegate: ParserInterface)
       val literal = Option(ctx.constant)
         .map(visitConstant)
         .map(lit => LiteralValue(lit.value, lit.dataType))
+      val nestedTransform = Option(ctx.transform())
+        .map(typedVisit[expressions.Transform])
       reference
         .orElse(literal)
+        .orElse(nestedTransform)
         .getOrElse(throw new IcebergParseException(s"Invalid transform argument", ctx))
     }
 

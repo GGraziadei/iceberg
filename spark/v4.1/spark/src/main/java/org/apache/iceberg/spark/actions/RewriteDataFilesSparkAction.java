@@ -47,6 +47,7 @@ import org.apache.iceberg.exceptions.CommitFailedException;
 import org.apache.iceberg.exceptions.ValidationException;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expressions;
+import org.apache.iceberg.expressions.Term;
 import org.apache.iceberg.relocated.com.google.common.annotations.VisibleForTesting;
 import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableList;
@@ -147,9 +148,23 @@ public class RewriteDataFilesSparkAction
   }
 
   @Override
+  public RewriteDataFilesSparkAction zOrder(Term... terms) {
+    ensureRunnerNotSet();
+    this.runner = SparkZOrderFileRewriteRunner.withTerms(spark(), table, terms);
+    return this;
+  }
+
+  @Override
   public RewriteDataFilesSparkAction hilbert(String... columnNames) {
     ensureRunnerNotSet();
     this.runner = new SparkHilbertFileRewriteRunner(spark(), table, Arrays.asList(columnNames));
+    return this;
+  }
+
+  @Override
+  public RewriteDataFilesSparkAction hilbert(Term... terms) {
+    ensureRunnerNotSet();
+    this.runner = SparkHilbertFileRewriteRunner.withTerms(spark(), table, terms);
     return this;
   }
 

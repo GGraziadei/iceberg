@@ -28,7 +28,7 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.actions.RewriteDataFiles;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.MultiColumnTerm;
-import org.apache.iceberg.expressions.NamedReference;
+import org.apache.iceberg.expressions.Term;
 import org.apache.iceberg.expressions.Zorder;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.relocated.com.google.common.collect.Lists;
@@ -215,14 +215,12 @@ class RewriteDataFilesProcedure extends BaseProcedure {
       List<ExtendedParser.RawOrderField> sortOrderFields,
       Schema schema) {
     if (!curveTerms.isEmpty()) {
-      String[] columnNames =
-          curveTerms.stream()
-              .flatMap(term -> term.refs().stream().map(NamedReference::name))
-              .toArray(String[]::new);
+      Term[] terms =
+          curveTerms.stream().flatMap(term -> term.terms().stream()).toArray(Term[]::new);
       if (curveTerms.get(0) instanceof Zorder) {
-        return action.zOrder(columnNames);
+        return action.zOrder(terms);
       }
-      return action.hilbert(columnNames);
+      return action.hilbert(terms);
     } else if (!sortOrderFields.isEmpty()) {
       return action.sort(buildSortOrder(sortOrderFields, schema));
     } else {

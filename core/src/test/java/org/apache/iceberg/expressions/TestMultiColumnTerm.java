@@ -40,4 +40,19 @@ public class TestMultiColumnTerm {
     assertThat(hilbert).isInstanceOf(MultiColumnTerm.class);
     assertThat(hilbert.refs()).containsExactlyElementsOf(refs);
   }
+
+  @Test
+  public void termsCarryTransforms() {
+    Zorder zorder =
+        new Zorder(ImmutableList.of(Expressions.truncate("a", 4), Expressions.day("b")));
+    assertThat(zorder.terms()).hasSize(2);
+    assertThat(zorder.terms().get(0)).isInstanceOf(UnboundTransform.class);
+  }
+
+  @Test
+  public void refsAreDerivedFromTerms() {
+    Hilbert hilbert =
+        new Hilbert(ImmutableList.of(Expressions.bucket("a", 16), Expressions.ref("b")));
+    assertThat(hilbert.refs().stream().map(NamedReference::name)).containsExactly("a", "b");
+  }
 }
